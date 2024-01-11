@@ -1,0 +1,73 @@
+/*
+JOBS AND SALARYS IN DATA SCIENCE
+
+work_year: El año en que se registraron los datos. Este campo indica el contexto temporal de los datos, importante para entender las tendencias salariales a lo largo del tiempo.
+
+job_title: El título específico del rol laboral, como 'Data Scientist' (Científico de Datos), 'Data Engineer' (Ingeniero de Datos) o 'Data Analyst' (Analista de Datos). Esta columna es crucial para comprender la distribución salarial en diversos roles especializados dentro del campo de datos.
+
+job_category: Una clasificación del rol laboral en categorías más amplias para un análisis más sencillo. Esto podría incluir áreas como 'Data Analysis' (Análisis de Datos), 'Machine Learning' (Aprendizaje Automático), 'Data Engineering' (Ingeniería de Datos), etc.
+
+salary_currency: La moneda en la que se paga el salario, como USD, EUR, etc. Esto es importante para la conversión de divisas y comprender el valor real del salario en un contexto global.
+
+salary: El salario bruto anual del rol en la moneda local. Esta cifra de salario bruto es clave para comparaciones salariales directas a nivel regional.
+
+salary_in_usd: El salario bruto anual convertido a dólares estadounidenses (USD). Esta conversión uniforme de moneda ayuda en comparaciones y análisis salariales a nivel global.
+
+employee_residence: El país de residencia del empleado. Este dato se puede utilizar para explorar las diferencias salariales geográficas y las variaciones en el costo de vida.
+
+experience_level: Clasifica el nivel de experiencia profesional del empleado. Categorías comunes podrían incluir 'Entry-level' (Principiante), 'Mid-level' (Intermedio), 'Senior' (Senior) y 'Executive' (Ejecutivo), proporcionando información sobre cómo la experiencia influye en el salario en roles relacionados con datos.
+
+employment_type: Especifica el tipo de empleo, como 'Full-time' (Tiempo completo), 'Part-time' (Tiempo parcial), 'Contract' (Contrato), etc. Esto ayuda a analizar cómo diferentes arreglos laborales afectan las estructuras salariales.
+
+work_setting: El entorno o configuración laboral, como 'Remote' (Remoto), 'In-person' (Presencial) o 'Hybrid' (Híbrido). Esta columna refleja el impacto de la configuración laboral en los niveles salariales en la industria de datos.
+
+company_location: El país donde se encuentra la empresa. Ayuda a analizar cómo la ubicación de la empresa afecta las estructuras salariales.
+
+company_size: El tamaño de la empresa empleadora, a menudo categorizado en pequeño (S), mediano (M) y grande (L). Esto permite el análisis de cómo el tamaño de la empresa influye en el salario.
+*/
+
+
+-- Obtén la media salarial en USD para cada nivel de experiencia, excluyendo los salarios que están por debajo de la media global de todos los niveles de experiencia.
+
+select AVG(CAST(salary_in_usd AS DECIMAL(10,2))) as media_salarial, experience_level
+from jobs_in_data
+where cast(salary_in_usd as decimal(10,2)) > (select avg(cast(salary_in_usd as decimal(10,2))) from jobs_in_data) and work_year = 2022
+GROUP BY experience_level
+select*from jobs_in_data
+
+-- Encuentra el título de trabajo más común para cada categoría de trabajo, junto con el número total de empleados que tienen ese título en cada categoría.
+
+select*
+from(
+select job_title, job_category, count(job_title) as personas_rubro, ROW_NUMBER() over (partition by job_category order by count(job_title) desc) as orden
+from jobs_in_data
+group by job_title, job_category
+)  as nueva_data
+where orden = 1 
+
+-- Encuentra el rango salarial (mínimo y máximo) para cada tipo de empleo en empresas de tamaño pequeño .
+
+select MAX(salario_numerico) as max_salario, MIN(salario_numerico) as min_salario,employment_type
+from(
+select*, ROW_NUMBER() over (partition by employment_type order by salario_numerico desc) as orden
+from(
+select cast(salary_in_usd as decimal(10,2)) as salario_numerico, employment_type, company_size
+from jobs_in_data
+where company_size = 'S' and work_year = 2023
+) as nueva_data ) as nueva_data2
+group by employment_type
+
+-- Calcula la cantidad de empleados en cada categoría de trabajo en el año 2023 y en empresas grandes
+
+select job_category, count(employment_type) as contador
+from jobs_in_data
+where work_year = 2023 and company_size = 'L'
+group by job_category
+
+/* Pregunta: Encuentra el salario promedio en USD para empleados que trabajan en empresas de tamaño mediano (por ejemplo, 100-500 empleados) 
+ en cada ubicación de la empresa y que el resultado se vea el simbolo dolar */
+
+select concat('$/',' ',AVG(cast(salary_in_usd as int ))) as salario_prom, company_location
+from jobs_in_data
+where company_size = 'M'
+group by company_location
